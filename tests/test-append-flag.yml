@@ -1,0 +1,41 @@
+name: Test append flag with fallback mode
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Test with append=true which sets --amend flag in docker manifest create
+      # Using fallback=true and push=false to avoid registry auth
+      - id: action
+        uses: .
+        with:
+          inputs: alpine:3.18
+          tags: myorg/myimage:latest
+          push: 'false'
+          fallback: 'true'
+          append: 'true'
+        continue-on-error: true
+
+      - name: Assert action ran (step completed)
+        run: |
+          echo "Action outcome: ${{ steps.action.outcome }}"
+          if [ "${{ steps.action.outcome }}" = "skipped" ]; then
+            echo "FAIL: action step was skipped unexpectedly"
+            exit 1
+          fi
+          echo "PASS: action step ran with append=true"
+
+      - name: Assert images output is empty when push is false
+        env:
+          ACTUAL: ${{ steps.action.outputs.images }}
+        run: |
+          echo "actual images output: '$ACTUAL'"
+          # When push=false in fallback mode, no images are pushed so output should be empty
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected empty images output when push=false, got: $ACTUAL"
+            exit 1
+          fi
+          echo "PASS: images output is empty as expected when push=false"

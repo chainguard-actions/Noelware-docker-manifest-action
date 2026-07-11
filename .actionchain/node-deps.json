@@ -1,0 +1,9 @@
+{
+  "status": "self_contained",
+  "entries": [
+    {
+      "path": "build/index.js",
+      "status": "self_contained"
+    }
+  ]
+}
