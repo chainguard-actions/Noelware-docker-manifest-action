@@ -8,6 +8,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 | Version | Tag | Upstream commit |
 |---------|-----|-----------------|
+| 0.4.3 | [`0.4.3`](https://github.com/chainguard-actions/Noelware-docker-manifest-action/tree/0.4.3) | [`b33ab34`](https://github.com/Noelware/docker-manifest-action/commit/b33ab348026b120a895167160f5605b0197f0862) |
 | 1.0.0 | [`1.0.0`](https://github.com/chainguard-actions/Noelware-docker-manifest-action/tree/1.0.0) | [`65660a0`](https://github.com/Noelware/docker-manifest-action/commit/65660a0ebf876a67d8374f1ff4c3ae5b7a3aeb50) |
 
 ## Privacy
