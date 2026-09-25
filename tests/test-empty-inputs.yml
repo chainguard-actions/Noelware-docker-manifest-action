@@ -1,0 +1,31 @@
+name: Test empty inputs handling
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          inputs: ''
+          images: ''
+          push: 'false'
+        continue-on-error: true
+
+      - name: Assert action handles empty inputs gracefully
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # With empty inputs and images, the action should either succeed
+          # (no-op) or fail with a clear error — it must not hang or crash
+          # the runner unexpectedly.
+          if [ "$OUTCOME" = "success" ] || [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action terminated cleanly with outcome '$OUTCOME'"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

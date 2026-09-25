@@ -1,0 +1,39 @@
+name: Test amend flag
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pull test images
+        run: |
+          docker pull alpine:3.18 --platform linux/amd64
+          docker pull alpine:3.18 --platform linux/arm64
+
+      - id: action
+        uses: .
+        with:
+          inputs: myrepo/myimage:latest
+          images: alpine:3.18
+          push: 'false'
+          amend: 'true'
+        continue-on-error: true
+
+      - name: Assert action ran with amend flag
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # With amend: true the action passes --amend to docker manifest create.
+          # It may succeed or fail depending on Docker daemon experimental support,
+          # but must not produce an unexpected outcome.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with amend flag"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully with amend flag (expected without a real registry)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

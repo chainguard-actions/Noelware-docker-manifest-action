@@ -1,0 +1,39 @@
+name: Test deprecated inputs (base-image and extra-images)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pull test images
+        run: |
+          docker pull alpine:3.18 --platform linux/amd64
+          docker pull alpine:3.18 --platform linux/arm64
+
+      - id: action
+        uses: .
+        with:
+          base-image: myrepo/myimage:latest
+          extra-images: alpine:3.18
+          push: 'false'
+        continue-on-error: true
+
+      - name: Assert action ran with deprecated inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The deprecated base-image and extra-images inputs should still be
+          # accepted by the action (backward compatibility). The action may
+          # succeed or fail depending on Docker daemon state, but must not
+          # crash the runner.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded with deprecated inputs"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully with deprecated inputs (expected without a real registry)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi

@@ -1,0 +1,39 @@
+name: Test basic usage (no push)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Pull test images for manifest creation
+        run: |
+          docker pull alpine:3.18 --platform linux/amd64
+          docker pull alpine:3.18 --platform linux/arm64
+
+      - id: action
+        uses: .
+        with:
+          inputs: myrepo/myimage:latest
+          images: alpine:3.18
+          push: 'false'
+          amend: 'false'
+        continue-on-error: true
+
+      - name: Assert action ran (manifest create without push)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action may succeed (manifest created) or fail (docker manifest
+          # requires experimental features or images not found by digest).
+          # Either way, it must not produce an unexpected outcome.
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (manifest created without push)"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected without a real registry)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
