@@ -1,0 +1,56 @@
+name: Test fallback to docker manifest create (no push)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Ensure docker buildx is available
+        run: |
+          if ! docker buildx version; then
+            mkdir -p "$HOME/.docker/cli-plugins"
+            curl -sSfL -o "$HOME/.docker/cli-plugins/docker-buildx" \
+              https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64
+            chmod +x "$HOME/.docker/cli-plugins/docker-buildx"
+            docker buildx version
+          fi
+      - name: Resolve single-platform source digest
+        id: src
+        run: |
+          DIGEST="$(docker buildx imagetools inspect docker.io/library/alpine:3.19 --raw \
+            | jq -r '.manifests[] | select(.platform.os=="linux" and .platform.architecture=="amd64") | .digest' | head -n1)"
+          echo "digest: $DIGEST"
+          if [ -z "$DIGEST" ]; then
+            echo "FAIL: could not resolve amd64 digest"
+            exit 1
+          fi
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+      - id: action
+        uses: .
+        with:
+          inputs: docker.io/actionchain/fallback-test:latest
+          tags: docker.io/library/alpine@${{ steps.src.outputs.digest }}
+          fallback: 'true'
+          push: 'false'
+      - name: Assert images output is empty when not pushing
+        env:
+          ACTUAL: ${{ steps.action.outputs.images }}
+        run: |
+          echo "actual: '$ACTUAL'"
+          if [ -n "$ACTUAL" ]; then
+            echo "FAIL: expected empty images output when push=false"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert local manifest list was created
+        env:
+          DIGEST: ${{ steps.src.outputs.digest }}
+        run: |
+          OUT="$(docker manifest inspect docker.io/actionchain/fallback-test:latest)"
+          echo "$OUT"
+          if ! echo "$OUT" | grep -q "$DIGEST"; then
+            echo "FAIL: local manifest list does not reference $DIGEST"
+            exit 1
+          fi
+          echo "PASS"

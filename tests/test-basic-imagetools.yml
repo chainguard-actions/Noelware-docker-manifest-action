@@ -1,0 +1,53 @@
+name: Test basic buildx imagetools merge
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Ensure docker buildx is available
+        run: |
+          if ! docker buildx version; then
+            mkdir -p "$HOME/.docker/cli-plugins"
+            curl -sSfL -o "$HOME/.docker/cli-plugins/docker-buildx" \
+              https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64
+            chmod +x "$HOME/.docker/cli-plugins/docker-buildx"
+            docker buildx version
+          fi
+      - name: Compute unique target tag
+        id: tag
+        run: |
+          TAG="ttl.sh/actionchain-dma-${GITHUB_RUN_ID:-0}-$RANDOM$RANDOM:1h"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "target: $TAG"
+      - id: action
+        uses: .
+        with:
+          inputs: docker.io/library/alpine:3.19
+          tags: ${{ steps.tag.outputs.tag }}
+      - name: Assert images output
+        env:
+          ACTUAL: ${{ steps.action.outputs.images }}
+        run: |
+          echo "actual: $ACTUAL"
+          case "$ACTUAL" in
+            docker.io/library/alpine:3.19@*) ;;
+            *) echo "FAIL: expected output to start with 'docker.io/library/alpine:3.19@'"; exit 1 ;;
+          esac
+          if ! echo "$ACTUAL" | grep -q 'sha256:[0-9a-f]\{64\}'; then
+            echo "FAIL: expected a sha256 digest in output"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert merged manifest exists at target tag
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          OUT="$(docker buildx imagetools inspect "$TAG")"
+          echo "$OUT"
+          if ! echo "$OUT" | grep -q 'linux/amd64'; then
+            echo "FAIL: target manifest does not include linux/amd64"
+            exit 1
+          fi
+          echo "PASS"
